@@ -24,7 +24,6 @@ import AdminActivityLog     from '@/views/admin/AdminActivityLog.vue'
 import AdminAdmissions      from '@/views/admin/AdminAdmissions.vue'
 import AdminUploadStudents  from '@/views/admin/AdminUploadStudents.vue'
 import FacultyGrades        from '@/views/FacultyGrades.vue'
-import FacultyStudents      from '@/views/FacultyStudents.vue'
 
 const routes = [
   { path: '/', component: HomeView, name: 'home', meta: { public: true } },
@@ -44,8 +43,7 @@ const routes = [
       { path: 'events',                 component: Events,        name: 'events'         },
       { path: 'scheduling',             component: Scheduling,    name: 'scheduling'     },
       { path: 'subject/:code/:section', component: SubjectDetail, name: 'subject-detail' },
-      { path: 'grades',                 component: FacultyGrades,   name: 'faculty-grades',   meta: { roles: ['faculty'] } },
-      { path: 'students',               component: FacultyStudents, name: 'faculty-students', meta: { roles: ['faculty'] } },
+      { path: 'grades',                 component: FacultyGrades, name: 'faculty-grades', meta: { roles: ['faculty'] } },
     ]
   },
   {

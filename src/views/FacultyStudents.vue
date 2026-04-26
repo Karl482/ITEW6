@@ -61,9 +61,7 @@
   <script setup>
   import { ref, computed, onMounted } from 'vue'
   import { supabase } from '@/lib/supabase.js'
-  import { useAuthStore } from '@/store/auth.js'
 
-  const auth     = useAuthStore()
   const students = ref([])
   const loading  = ref(true)
   const search   = ref('')
@@ -74,25 +72,14 @@
       !q ||
       s.name.toLowerCase().includes(q) ||
       s.id.toLowerCase().includes(q) ||
-      (s.program || '').toLowerCase().includes(q) ||
-      (s.section || '').toLowerCase().includes(q)
+      (s.program || '').toLowerCase().includes(q)
     )
   })
 
   onMounted(async () => {
-    // only show students from sections this faculty handles
-    const { data: subjects } = await supabase
-      .from('faculty_subjects')
-      .select('section')
-      .eq('faculty_id', auth.state.user?.id)
-
-    const sections = [...new Set((subjects || []).map(s => s.section))]
-    if (!sections.length) { loading.value = false; return }
-
     const { data } = await supabase
       .from('students')
       .select('*, faculty:adviser_id(name)')
-      .in('section', sections)
       .order('name')
     students.value = data || []
     loading.value  = false
