@@ -114,32 +114,21 @@
           </div>
           <div class="form-row">
             <div class="field">
-              <label>Final Grade</label>
-              <select v-model="form.final_grade">
-                <option value="">— Select —</option>
-                <option value="1.00">1.00</option>
-                <option value="1.25">1.25</option>
-                <option value="1.50">1.50</option>
-                <option value="1.75">1.75</option>
-                <option value="2.00">2.00</option>
-                <option value="2.25">2.25</option>
-                <option value="2.50">2.50</option>
-                <option value="2.75">2.75</option>
-                <option value="3.00">3.00</option>
-                <option value="5.00">5.00 (Failed)</option>
-                <option value="INC">INC</option>
-                <option value="DRP">DRP</option>
-              </select>
+              <label>Final Grade <span class="auto-tag">auto</span></label>
+              <div :class="['computed-box', form.final_grade === '5.00' ? 'failed' : form.final_grade ? 'passed' : 'empty']">
+                {{ form.final_grade || '—' }}
+              </div>
             </div>
             <div class="field">
-              <label>Remarks</label>
-              <select v-model="form.remarks">
-                <option>Passed</option>
-                <option>Failed</option>
-                <option>Incomplete</option>
-                <option>Dropped</option>
-              </select>
+              <label>Remarks <span class="auto-tag">auto</span></label>
+              <div :class="['computed-box', form.remarks === 'Failed' ? 'failed' : form.remarks === 'Passed' ? 'passed' : 'empty']">
+                {{ form.remarks || '—' }}
+              </div>
             </div>
+          </div>
+          <div class="grading-hint">
+            <i class="bi bi-info-circle"></i>
+            Final grade is computed as: (Midterm × 40%) + (Finals × 60%)
           </div>
           <div v-if="saveErr" class="form-error">{{ saveErr }}</div>
         </div>
@@ -157,7 +146,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useAuthStore } from '@/store/auth.js'
 import { supabase } from '@/lib/supabase.js'
 import { logActivity } from '@/lib/activityLog.js'
@@ -176,7 +165,38 @@ const saving         = ref(false)
 const saveErr        = ref('')
 const editTarget     = ref(null)
 
-const form = ref({ midterm: '', finals: '', final_grade: '', remarks: 'Passed' })
+const form = ref({ midterm: '', finals: '', final_grade: '', remarks: '' })
+
+// ── Grading scale (Philippine university standard) ───────────
+// Average = (midterm * 40%) + (finals * 60%)
+function computeGrade(midterm, finals) {
+  const m = parseFloat(midterm)
+  const f = parseFloat(finals)
+  if (isNaN(m) || isNaN(f)) return { final_grade: '', remarks: '' }
+
+  const avg = (m * 0.4) + (f * 0.6)
+
+  let grade
+  if      (avg >= 97) grade = '1.00'
+  else if (avg >= 94) grade = '1.25'
+  else if (avg >= 91) grade = '1.50'
+  else if (avg >= 88) grade = '1.75'
+  else if (avg >= 85) grade = '2.00'
+  else if (avg >= 82) grade = '2.25'
+  else if (avg >= 79) grade = '2.50'
+  else if (avg >= 76) grade = '2.75'
+  else if (avg >= 75) grade = '3.00'
+  else                grade = '5.00'
+
+  return { final_grade: grade, remarks: grade === '5.00' ? 'Failed' : 'Passed' }
+}
+
+// Auto-compute whenever midterm or finals changes
+watch(() => [form.value.midterm, form.value.finals], ([m, f]) => {
+  const result = computeGrade(m, f)
+  form.value.final_grade = result.final_grade
+  form.value.remarks     = result.remarks
+})
 
 // rows = students merged with their grade for this subject
 const rows = computed(() =>
@@ -230,10 +250,16 @@ function openEdit(row) {
   editTarget.value = row
   const g = row.grade
   form.value = {
-    midterm:     g?.midterm     ?? '',
-    finals:      g?.finals      ?? '',
+    midterm:     g?.midterm ?? '',
+    finals:      g?.finals  ?? '',
     final_grade: g?.final_grade ?? '',
-    remarks:     g?.remarks     || 'Passed',
+    remarks:     g?.remarks || '',
+  }
+  // trigger auto-compute if scores already exist
+  if (g?.midterm != null && g?.finals != null) {
+    const result = computeGrade(g.midterm, g.finals)
+    form.value.final_grade = result.final_grade
+    form.value.remarks     = result.remarks
   }
   saveErr.value = ''
   modal.value = true
@@ -338,6 +364,12 @@ tr:last-child td { border-bottom:none; }
 .field input, .field select { padding:9px 11px; border:1px solid #d6e4d8; border-radius:7px; font-size:13px; font-family:inherit; outline:none; background:#fff; }
 .field input:focus, .field select:focus { border-color:#1a6b2e; }
 .form-error { padding:8px 12px; background:#fff0f0; border:1px solid #f5c6cb; border-radius:7px; font-size:12px; color:#c0392b; margin-top:8px; }
+.computed-box { padding:9px 11px; border-radius:7px; font-size:14px; font-weight:700; border:1px solid #d6e4d8; background:#f8f9fa; text-align:center; }
+.computed-box.passed { background:#eaf4ec; color:#1a6b2e; border-color:#b2d8bc; }
+.computed-box.failed { background:#fff0f0; color:#dc3545; border-color:#f5c6cb; }
+.computed-box.empty  { color:#adb5bd; }
+.auto-tag { font-size:9px; font-weight:700; background:#eaf4ec; color:#1a6b2e; padding:1px 6px; border-radius:4px; margin-left:4px; text-transform:uppercase; letter-spacing:.3px; }
+.grading-hint { font-size:11px; color:#6c757d; margin-top:4px; display:flex; align-items:center; gap:5px; }
 .modal-foot { padding:14px 18px; border-top:1px solid #d6e4d8; display:flex; justify-content:flex-end; gap:10px; background:#fff; }
 .btn-cancel { padding:8px 16px; background:#f8f9fa; border:1px solid #d6e4d8; border-radius:8px; font-size:13px; cursor:pointer; font-family:inherit; }
 .btn-primary { padding:9px 18px; background:#1a6b2e; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; font-family:inherit; }
